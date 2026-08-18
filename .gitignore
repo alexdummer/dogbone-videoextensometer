@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*_temp_frames/
+*.mov
+*.MOV
+*.mp4
+*.avi
