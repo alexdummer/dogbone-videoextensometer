@@ -42,6 +42,47 @@ def pick_two_points(preliminary_image):
     return points_selected
 
 
+LEFT_KEYS = {2424832, 65361, 81, 63234}
+RIGHT_KEYS = {2555904, 65363, 83, 63235}
+CONFIRM_KEYS = {13, 10, ord('c')}
+CANCEL_KEYS = {27, ord('q')}
+
+def find_strain_decrease_frame(results, tolerance=0.02):
+    if not results:
+        return None
+    running_max = results[0]['strain']
+    for i, row in enumerate(results):
+        if i == 0:
+            continue
+        if row['strain'] < running_max - tolerance:
+            return i
+        running_max = max(running_max, row['strain'])
+    return None
+
+def review_failure_frame(img_list, results, candidate_index):
+    last_idx = len(img_list) - 1
+    idx = max(0, candidate_index - 1)
+    window_name = "Select last good frame (Left/Right=navigate, Enter/c=confirm, Esc/q=keep all)"
+    cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+    try:
+        while True:
+            img = cv2.imread(img_list[idx])
+            label = f"Frame {idx}/{last_idx}  strain={results[idx]['strain'] * 100.0:.2f}%"
+            cv2.putText(img, label, (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            cv2.imshow(window_name, img)
+
+            key = cv2.waitKeyEx(0)
+            if key in LEFT_KEYS:
+                idx = max(0, idx - 1)
+            elif key in RIGHT_KEYS:
+                idx = min(last_idx, idx + 1)
+            elif key in CONFIRM_KEYS:
+                return idx
+            elif key in CANCEL_KEYS:
+                return None
+    finally:
+        cv2.destroyWindow(window_name)
+
 def extract_frames_from_video(video_path, output_folder, frame_frequency=1):
     """Extracts frames from a video file and saves them as sorted sequential JPGs."""
     if not os.path.exists(video_path):
@@ -73,7 +114,7 @@ def extract_frames_from_video(video_path, output_folder, frame_frequency=1):
 
 
 def run_extensometer_analysis(input_path, output_csv_path, window_size=64, frame_frequency=1, points_file=None,
-                              start_frame=0, end_frame=None):
+                              start_frame=0, end_frame=None, review_failure=True, failure_tolerance=0.02):
     """Executes extensometer analysis on a directory or video file by tracking 2 points."""
     is_video = input_path.lower().endswith((".mov", ".mp4", ".avi"))
 
@@ -204,6 +245,21 @@ def run_extensometer_analysis(input_path, output_csv_path, window_size=64, frame
         point_to_process = final_point
         img_ref = image_str
 
+    if review_failure:
+        candidate = find_strain_decrease_frame(results, tolerance=failure_tolerance)
+        if candidate is not None:
+            print(f"Possible tracking failure detected at frame index {candidate} "
+                  f"({results[candidate]['frame']}, strain={results[candidate]['strain'] * 100.0:.2f}%).")
+            print("Opening review window: Left/Right arrows to navigate, Enter/'c' to confirm the "
+                  "last good frame, Esc/'q' to keep all frames.")
+            chosen = review_failure_frame(img_list, results, candidate)
+            if chosen is not None:
+                print(f"Keeping frames up to index {chosen} ({results[chosen]['frame']}); "
+                      f"discarding {len(results) - chosen - 1} later frame(s).")
+                results = results[:chosen + 1]
+            else:
+                print("Keeping all frames.")
+
     output_dir = os.path.dirname(output_csv_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -231,6 +287,8 @@ if __name__ == "__main__":
                         help="First frame (index into the sorted/extracted frame list) to consider (default: 0)")
     parser.add_argument("--end-frame", type=int, default=None,
                         help="Last frame (index into the sorted/extracted frame list) to consider (default: last available frame)")
+    parser.add_argument("--no-failure-review", action="store_true",
+                        help="Skip the interactive last-good-frame review that normally triggers when strain decreases")
     args = parser.parse_args()
 
     if args.output:
@@ -251,4 +309,5 @@ if __name__ == "__main__":
         points_file=args.points_file,
         start_frame=args.start_frame,
         end_frame=args.end_frame,
+        review_failure=not args.no_failure_review,
     )

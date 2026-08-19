@@ -28,6 +28,11 @@ CSV of positions, distance, and engineering strain.
 Input can be a video file (`.mov`, `.mp4`, `.avi`) or a directory of already-extracted `*.JPG`
 frames.
 
+After tracking finishes, the script scans the strain history for the first frame where strain
+drops noticeably below its running max (a sign that the specimen broke and the tracker
+lost/jumped its points). If found, a review window opens on that frame: use the **Left/Right
+arrow keys** to step through frames, **Enter/`c`** to confirm the current frame as the last good one (all later frames are discarded from the output), or **Esc/`q`** to keep every frame. If no  decrease is detected, this step is skipped automatically.
+
 Output:
 - `<video>_extensometer.csv` — one row per frame: `frame, pt1_x, pt1_y, pt2_x, pt2_y, distance, strain`
 - `<video>_extensometer_points_image.jpg` — reference frame with the selected points marked
@@ -43,6 +48,7 @@ Options:
 | `--output FILE` | Output CSV path (default: `<video>_extensometer.csv`) |
 | `--start-frame N` | First frame index (into the sorted/extracted frame list) to track (default: 0) |
 | `--end-frame N` | Last frame index to track (default: last available frame) |
+| `--no-failure-review` | Skip the interactive last-good-frame review even if a strain decrease is detected |
 
 ### 2. Visualize results: `plot_video_extensometer.py`
 
