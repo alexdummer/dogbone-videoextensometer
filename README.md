@@ -74,3 +74,23 @@ Options:
 python3 video_extensometer.py data/test1.MOV --points-file data/test1_points.json
 python3 plot_video_extensometer.py data/test1_extensometer.csv --video data/test1.MOV
 ```
+
+## Development
+
+This repo uses [pre-commit](https://pre-commit.com/) to run `black`, `isort`, and `flake8` (plus a
+few basic hygiene checks) on every commit.
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+To run the checks manually against all files:
+
+```bash
+pre-commit run --all-files
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

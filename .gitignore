@@ -5,3 +5,4 @@ __pycache__/
 *.MOV
 *.mp4
 *.avi
+.venv/
